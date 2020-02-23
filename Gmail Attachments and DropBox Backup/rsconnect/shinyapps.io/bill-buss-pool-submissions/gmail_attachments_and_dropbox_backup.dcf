@@ -1,0 +1,10 @@
+name: gmail_attachments_and_dropbox_backup
+title:
+username:
+account: bill-buss-pool-submissions
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1136570
+bundleId: 2377825
+url: https://bill-buss-pool-submissions.shinyapps.io/gmail_attachments_and_dropbox_backup/
+when: 1567436378.71576
