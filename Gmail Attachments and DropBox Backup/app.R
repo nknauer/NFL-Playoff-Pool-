@@ -38,9 +38,12 @@ observeEvent(input$GMAIL_BUTTON, {
   
   ##options(httr_oob_default=T)
   ##gmailr::clear_token()
- gmailr::use_secret_file("credentials.json")
-        gmailr::gmail_auth()
-        raw_folder_outputs<-gmailr::labels(user_id = "me")
+  gm_auth_configure(path = "~/Gmail Attachments and DropBox Backup_v2/json/billbussapi.json")
+  ##gmailr::use_secret_file("~/Gmail Attachments and DropBox Backup_v2/json/billbussapi.json")
+  gm_auth(email = TRUE, cache = ".secret")
+  ##gm_auth_configure(path = "credentials.json")
+        ##gmailr::gm_auth()
+        raw_folder_outputs<-gmailr::gm_labels(user_id = "me")
         year_of_pool<- ifelse(month(Sys.Date())>2, year(Sys.Date())+1, year(Sys.Date()))
         raw_folder_output_labels<-raw_folder_outputs$labels
         ##Extract the ID for the Gmail Folder you selected
@@ -50,80 +53,26 @@ observeEvent(input$GMAIL_BUTTON, {
         
         ##Extract all the messages in that folder from the Gmail folder ID
         mssgs <- 
-          messages(label_ids = folder_id,
+          gm_messages(label_ids = folder_id,
                    user_id = "me")
         
         
         ##Loading Bar
         withProgress(message = 'Downloading Email Attachments', value = 0, {
-          n <- length(gmailr::id(mssgs))
+          n <- length(gmailr::gm_id(mssgs))
           
         
         ##Download all attachments from the Gmail Folder to your Adobe local folder file path
-        for (i in 1:length(gmailr::id(mssgs))){
-          ids = gmailr::id(mssgs)
-          Mn = message(ids[i], user_id = "me")
+        for (i in 1:length(gmailr::gm_id(mssgs))){
+          ids = gmailr::gm_id(mssgs)
+          Mn = gm_message(ids[i], user_id = "me")
           path = temp_directory_for_files
-          save_attachments(Mn, attachment_id = NULL, path, user_id = "me")
+          gm_save_attachments(Mn, attachment_id = NULL, path, user_id = "me")
           incProgress(1/n, detail = paste("Email", i, "of", n))
           Sys.sleep(0.1)
         }})
-        
-        
-        
-
-  
-##AUTHENTICATE DROPBOX ACCOUNT  
-  ##options(httr_oob_default = FALSE, httr_oauth_cache=TRUE)
-  ##token <- drop_auth()
-  ##saveRDS(token, "droptoken.rds")
-  # Upload droptoken to your server
-  # ******** WARNING ********
-  # Losing this file will give anyone 
-  # complete control of your Dropbox account
-  # You can then revoke the rdrop2 app from your
-  # dropbox account and start over.
-  # ******** WARNING ********
-  # read it back with readRDS
-        token <- drop_auth(rdstoken = "droptoken.rds")     
-  
-  token <- readRDS("droptoken.rds")
-  # Then pass the token to each drop_ function
-DropBox_File<-paste0("Bill_Buss_Submissions_", format(Sys.time(), "%Y%m%d_%H%M%S_"))
-rdrop2::drop_create(DropBox_File, dtoken = token)
-
-
-##upload files to dropbox
-file.list <- list.files(path = temp_directory_for_files, 
-                        pattern='*.xlsx', recursive = TRUE)
 
 setwd(temp_directory_for_files)
-
-
-withProgress(message = 'Uploading to Dropbox as Backup', value = 0, {
-  n <- length(file.list)
-  
-for (i in 1:length(file.list)){
-  rdrop2::drop_upload(file.list[i], path=DropBox_File, dtoken = token)
-  incProgress(1/n, detail = paste("Entry", i, "of", n))
-  Sys.sleep(0.1)
-}})
-
-##Read Multiple Files From DropBox into R
-path_for_dropbox_download<- tolower(DropBox_File)
-
-withProgress(message = 'Uploading Entries to Right Panel', value = 0, {
-  n <- length(file.list)
-  
-for (i in 1:length(file.list)){
-  rdrop2::drop_download(paste0("/",
-                               path_for_dropbox_download,
-                               "/", file.list[i]), 
-                        temp_directory_for_files, 
-                        overwrite = TRUE, dtoken = token)
-  incProgress(1/n, detail = paste("Entry", i, "of", n, "to Right Panel"))
-  Sys.sleep(0.1)
-}})
 
 ##Call your file path to upload all Adobe files to R
 require(tidyverse)
@@ -132,12 +81,12 @@ Bill_Buss_df <- list.files(path = temp_directory_for_files,
                            full.names = TRUE,
                            recursive = TRUE,
                            pattern = "*.xls") %>% 
-  tbl_df() %>%
+  tibble::as_tibble() %>%
   mutate(sheetName = map(value, readxl::excel_sheets)) %>%
   unnest(sheetName) %>%
   filter(.,sheetName=="ENTRY DATA LINE") %>%
   mutate(myFiles = purrr::map2(value, sheetName, function(x,y) {
-    readxl::read_excel(x, sheet = paste(y), skip = 2)})) %>% 
+    readxl::read_excel(x, sheet = paste(y), skip = 3)})) %>% 
   unnest(myFiles)
 
 Bill_Buss_df$value<-NULL
@@ -159,34 +108,45 @@ colnames(Bill_Buss_df)[14]<- "Wild Card 4 TM_Away"
 colnames(Bill_Buss_df)[15]<- "Wild Card 4 SC_Away"
 colnames(Bill_Buss_df)[16]<- "Wild Card 4 TM_Home"
 colnames(Bill_Buss_df)[17]<- "Wild Card 4 SC_Home"
-colnames(Bill_Buss_df)[18]<- "Div Game 1 TM_Away"
-colnames(Bill_Buss_df)[19]<- "Div Game 1 SC_Away"
-colnames(Bill_Buss_df)[20]<- "Div Game 1 TM_Home"
-colnames(Bill_Buss_df)[21]<- "Div Game 1 SC_Home"
-colnames(Bill_Buss_df)[22]<- "Div Game 2 TM_Away"
-colnames(Bill_Buss_df)[23]<- "Div Game 2 SC_Away"
-colnames(Bill_Buss_df)[24]<- "Div Game 2 TM_Home"
-colnames(Bill_Buss_df)[25]<- "Div Game 2 SC_Home"
-colnames(Bill_Buss_df)[26]<- "Div Game 3 TM_Away"
-colnames(Bill_Buss_df)[27]<- "Div Game 3 SC_Away"
-colnames(Bill_Buss_df)[28]<- "Div Game 3 TM_Home"
-colnames(Bill_Buss_df)[29]<- "Div Game 3 SC_Home"
-colnames(Bill_Buss_df)[30]<- "Div Game 4 TM_Away"
-colnames(Bill_Buss_df)[31]<- "Div Game 4 SC_Away"
-colnames(Bill_Buss_df)[32]<- "Div Game 4 TM_Home"
-colnames(Bill_Buss_df)[33]<- "Div Game 4 SC_Home"
-colnames(Bill_Buss_df)[34]<- "AFC Champ TM_Away"
-colnames(Bill_Buss_df)[35]<- "AFC Champ SC_Away"
-colnames(Bill_Buss_df)[36]<- "AFC Champ TM_Home"
-colnames(Bill_Buss_df)[37]<- "AFC Champ SC_Home"
-colnames(Bill_Buss_df)[38]<- "NFC Champ TM_Away"
-colnames(Bill_Buss_df)[39]<- "NFC Champ SC_Away"
-colnames(Bill_Buss_df)[40]<- "NFC Champ TM_Home"
-colnames(Bill_Buss_df)[41]<- "NFC Champ SC_Home"
-colnames(Bill_Buss_df)[42]<- "Superbowl TM_Away"
-colnames(Bill_Buss_df)[43]<- "Superbowl SC_Away"
-colnames(Bill_Buss_df)[44]<- "Superbowl TM_Home"
-colnames(Bill_Buss_df)[45]<- "Superbowl SC_Home"
+colnames(Bill_Buss_df)[18]<- "Wild Card 5 TM_Away"
+colnames(Bill_Buss_df)[19]<- "Wild Card 5 SC_Away"
+colnames(Bill_Buss_df)[20]<- "Wild Card 5 TM_Home"
+colnames(Bill_Buss_df)[21]<- "Wild Card 5 SC_Home"
+colnames(Bill_Buss_df)[22]<- "Wild Card 6 TM_Away"
+colnames(Bill_Buss_df)[23]<- "Wild Card 6 SC_Away"
+colnames(Bill_Buss_df)[24]<- "Wild Card 6 TM_Home"
+colnames(Bill_Buss_df)[25]<- "Wild Card 6 SC_Home"
+colnames(Bill_Buss_df)[26]<- "Div Game 1 TM_Away"
+colnames(Bill_Buss_df)[27]<- "Div Game 1 SC_Away"
+colnames(Bill_Buss_df)[28]<- "Div Game 1 TM_Home"
+colnames(Bill_Buss_df)[29]<- "Div Game 1 SC_Home"
+colnames(Bill_Buss_df)[30]<- "Div Game 2 TM_Away"
+colnames(Bill_Buss_df)[31]<- "Div Game 2 SC_Away"
+colnames(Bill_Buss_df)[32]<- "Div Game 2 TM_Home"
+colnames(Bill_Buss_df)[33]<- "Div Game 2 SC_Home"
+colnames(Bill_Buss_df)[34]<- "Div Game 3 TM_Away"
+colnames(Bill_Buss_df)[35]<- "Div Game 3 SC_Away"
+colnames(Bill_Buss_df)[36]<- "Div Game 3 TM_Home"
+colnames(Bill_Buss_df)[37]<- "Div Game 3 SC_Home"
+colnames(Bill_Buss_df)[38]<- "Div Game 4 TM_Away"
+colnames(Bill_Buss_df)[39]<- "Div Game 4 SC_Away"
+colnames(Bill_Buss_df)[40]<- "Div Game 4 TM_Home"
+colnames(Bill_Buss_df)[41]<- "Div Game 4 SC_Home"
+colnames(Bill_Buss_df)[42]<- "AFC Champ TM_Away"
+colnames(Bill_Buss_df)[43]<- "AFC Champ SC_Away"
+colnames(Bill_Buss_df)[44]<- "AFC Champ TM_Home"
+colnames(Bill_Buss_df)[45]<- "AFC Champ SC_Home"
+colnames(Bill_Buss_df)[46]<- "NFC Champ TM_Away"
+colnames(Bill_Buss_df)[47]<- "NFC Champ SC_Away"
+colnames(Bill_Buss_df)[48]<- "NFC Champ TM_Home"
+colnames(Bill_Buss_df)[49]<- "NFC Champ SC_Home"
+colnames(Bill_Buss_df)[50]<- "Superbowl TM_Away"
+colnames(Bill_Buss_df)[51]<- "Superbowl SC_Away"
+colnames(Bill_Buss_df)[52]<- "Superbowl TM_Home"
+colnames(Bill_Buss_df)[53]<- "Superbowl SC_Home"
+
+##setwd("~/")
+##readr::write_csv(Bill_Buss_df, 'test_11_22.csv')
 
 output$table1 <- DT::renderDataTable({
   datatable(Bill_Buss_df, extensions = 'Buttons', options = list(
@@ -218,4 +178,5 @@ output$table1 <- DT::renderDataTable({
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
+
 
